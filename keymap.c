@@ -27,28 +27,31 @@ extern uint8_t is_master;
 // entirely and just use numbers.
 // }}}
 enum layer_number {
-	 _GOB = 0
-	, _SHIFT /*SHIFT*/
-	, _RIGHT /*SHIFT*/
-	, _LEFT  /*SHIFT*/
-    , _QWERTY
-    , _ADJUST
+	_GOB = 0,
+	_SHIFT, /*SHIFT*/
+	_RIGHT, /*SHIFT*/
+	_LEFT,  /*SHIFT*/
+	_QWERTY,
+	_ADJUST,
 };
 
 enum custom_keycodes {
-  QWERTY = SAFE_RANGE
-  , ADJUST
-  , BACKLIT
-  , EISU
-  , KANA
-  , RGBRST
-  , GOB
-  , _SHIFT
-  , _RIGHT
-  , _LEFT
-  , SHIFT_HOLD
-  , R_HOLD
-  , L_HOLD
+	QWERTY = SAFE_RANGE,
+	LOWER,
+	RAISE,
+	BACKLIT,
+	EISU,
+	KANA,
+	RGBRST,
+	SHIFT_HOLD,
+	R_HOLD,
+	L_HOLD,
+	GOB,
+	SHIFT,
+	RIGHT,
+	LEFT,
+	ADJUST,
+	SAFE_RANGE_self
 };
 
 enum macro_keycodes {
@@ -81,6 +84,8 @@ float music_scale[][2]     = SONG(MUSIC_SCALE_SOUND);
 
 // define variables for reactive RGB
 bool TOG_STATUS = false;
+int prestatus = SAFE_RANGE_self;
+int status = _GOB;
 int RGB_current_mode;
 
 void persistent_default_layer_set(uint16_t default_layer) {
@@ -101,15 +106,100 @@ void update_tri_layer_RGB(uint8_t layer1, uint8_t layer2, uint8_t layer3) {
 }
 /* }}} */
 
+void status_update( uint16_t keycode ){
+	status = keycode;
+	switch( status ){
+		case GOB:
+			persistent_default_layer_set(1UL<<_GOB);
+		case QWERTY:
+			persistent_default_layer_set(1UL<<_QWERTY);
+		case SHIFT:
+			persistent_default_layer_set(1UL<<_SHIFT);
+		case LEFT:
+			persistent_default_layer_set(1UL<<_LEFT);
+		case RIGHT:
+			persistent_default_layer_set(1UL<<_RIGHT);
+		case ADJUST:
+			persistent_default_layer_set(1UL<<_ADJUST);
+			layer_off( prestatus );
+			layer_on( status );
+		default:
+			break;
+	}
+	prestatus = status;
+	return;
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-  switch (keycode) {
+	if (record->event.pressed) {
+		status_update( keycode );
+	}
+	return true;
+}
+	/*
+	switch (keycode) {
 	case GOB:
 		if (record->event.pressed) {
 			persistent_default_layer_set(1UL<<_GOB);
+			layer_on(_GOB);
+		} else {
+			layer_off(_GOB);
 		}
 		return false;
 		break;
-	case _SHIFT:
+	case SHIFT:
+		if (record->event.pressed) {
+			layer_on(_SHIFT);
+		} else {
+			layer_off(_SHIFT);
+		}
+		return false;
+		break;
+	case LEFT:
+		if (record->event.pressed) {
+			layer_on(_LEFT);
+		} else {
+			layer_off(_LEFT);
+		}
+		return false;
+		break;
+	case RIGHT:
+		if (record->event.pressed) {
+			layer_on(_RIGHT);
+		} else {
+			layer_off(_RIGHT);
+		}
+		return false;
+		break;
+	case ADJUST:
+		if (record->event.pressed) {
+			layer_on(_ADJUST);
+		} else {
+			layer_off(_ADJUST);
+		}
+		return false;
+		break;
+	//led operations - RGB mode change now updates the RGB_current_mode to allow the right RGB mode to be set after reactive keys are released
+
+	case QWERTY:
+		if (record->event.pressed) {
+			//not sure how to have keyboard check mode and set it to a variable, so my work around
+			//uses another variable that would be set to true after the first time a reactive key is pressed.
+			if (TOG_STATUS) {
+			//TOG_STATUS checks is another reactive key currently pressed, only changes RGB mode if returns false
+				layer_on(_QWERTY);
+			} else {
+				TOG_STATUS = !TOG_STATUS;
+				layer_off(_QWERTY);
+			}
+			//update_tri_layer_RGB(_LOWER, _RAISE, _ADJUST);
+		} else {
+			TOG_STATUS = false;
+			//update_tri_layer_RGB(_LOWER, _RAISE, _ADJUST);
+		}
+		return false;
+		break;
+	case SHIFT:
 		if (record->event.pressed) {
 			persistent_default_layer_set(1UL<<_SHIFT);
 		}
@@ -131,8 +221,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 			//update_tri_layer_RGB(_LOWER, _RAISE, _ADJUST);
 		}
 		return false;
-		break;
-	case _RIGHT:
+		break;*/
+/*	case RIGHT:
 		if (record->event.pressed) {
 			persistent_default_layer_set(1UL<<_RIGHT);
 		}
@@ -155,7 +245,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 		}
 		return false;
 		break;
-	case _LEFT:
+	case LEFT:
 		if (record->event.pressed) {
 			persistent_default_layer_set(1UL<<_LEFT);
 		}
@@ -178,16 +268,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 		}
 		return false;
 		break;
-    case QWERTY:
-      if (record->event.pressed) {
-        #ifdef AUDIO_ENABLE
-          PLAY_SONG(tone_qwerty);
-        #endif
-        persistent_default_layer_set(1UL<<_QWERTY);
-      }
-      return false;
-      break;
-    /* // {{{
+    / * // {{{
     case COLEMAK:
       if (record->event.pressed) {
         #ifdef AUDIO_ENABLE
@@ -252,16 +333,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
       }
       return false;
       break;
-     /// }}} */
-    case ADJUST:
-        if (record->event.pressed) {
-          layer_on(_ADJUST);
-        } else {
-          layer_off(_ADJUST);
-        }
-        return false;
-        break;
-      //led operations - RGB mode change now updates the RGB_current_mode to allow the right RGB mode to be set after reactive keys are released
+     /// }}} * /
     case RGB_MOD:
       #ifdef RGBLIGHT_ENABLE
         if (record->event.pressed) {
@@ -308,7 +380,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
   }
   return true;
 }
-/* {{{ */
+/ * {{{ */
 
 void matrix_init_user(void) {
     #ifdef AUDIO_ENABLE
